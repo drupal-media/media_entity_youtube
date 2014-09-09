@@ -8,6 +8,7 @@ namespace Drupal\media_entity_youtube\Plugin\MediaEntity\Type;
 
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\media_entity\MediaBundleInterface;
 use Drupal\media_entity\MediaTypeInterface;
 
 /**
@@ -60,8 +61,25 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   /**
    * {@inheritdoc}
    */
-  public function settingsForm() {
-    // @TODO: Implement.
+  public function settingsForm(MediaBundleInterface $bundle) {
+    $form = array();
+    $options = array();
+    $allowed_field_types = array('text', 'text_long', 'link');
+    foreach (\Drupal::entityManager()->getFieldDefinitions('media', $bundle->id()) as $field_name => $field) {
+      if (in_array($field->getType(), $allowed_field_types)) {
+        $options[$field_name] = $field->getLabel();
+      }
+    }
+
+    $form['source_field'] = array(
+      '#type' => 'select',
+      '#title' => t('Field with source information'),
+      '#description' => t('Field on media entity that stores YouTube embed code or URL.'),
+      '#default_value' => empty($this->configuration['source_field']) ? NULL : $this->configuration['source_field'],
+      '#options' => $options,
+    );
+
+    return $form;
   }
 
   /**
