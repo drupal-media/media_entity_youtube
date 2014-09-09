@@ -1,0 +1,7 @@
+media_entity.bundle.type.youtube:
+  type: mapping
+  label: 'YouTube type configuration'
+  mapping:
+    source_field:
+      type: string
+      label: 'Field with embed code/URL'
