@@ -102,9 +102,8 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   public function validate(MediaInterface $media) {
     $source_field = $this->configuration['source_field'];
     foreach ($this->validationRegexp as $regexp) {
-      $field_definition = $media->getFieldDefinition($source_field);
-      $embed_code = $field_definition->getType() == 'link' ? $media->{$source_field}->url : $media->{$source_field}->value;
-      if (preg_match($regexp, $embed_code)) {
+      $property_name = $media->{$source_field}->first()->mainPropertyName();
+      if (preg_match($regexp, $media->{$source_field}->{$property_name})) {
         return;
       }
     }
