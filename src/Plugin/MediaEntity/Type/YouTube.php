@@ -9,6 +9,8 @@ namespace Drupal\media_entity_youtube\Plugin\MediaEntity\Type;
 use Drupal\Component\Plugin\PluginBase;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\media_entity\MediaBundleInterface;
+use Drupal\media_entity\MediaInterface;
+use Drupal\media_entity\MediaTypeException;
 use Drupal\media_entity\MediaTypeInterface;
 
 /**
@@ -22,6 +24,18 @@ use Drupal\media_entity\MediaTypeInterface;
  */
 class YouTube extends PluginBase implements MediaTypeInterface {
   use StringTranslationTrait;
+
+  /**
+   * List of validation regural expressions.
+   *
+   * @var array
+   */
+  protected $validationRegexp = array(
+    '@(http|https)://www\.youtube(-nocookie)?\.com/embed/([a-z0-9_-]+)@i',
+    '@(http|https)://www\.youtube(-nocookie)?\.com/v/([a-z0-9_-]+)@i',
+    '@//www\.youtube(-nocookie)?\.com/embed/([a-z0-9_-]+)@i',
+    '@//www\.youtube(-nocookie)?\.com/v/([a-z0-9_-]+)@i',
+  );
 
   /**
    * Plugin label.
@@ -85,8 +99,17 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   /**
    * {@inheritdoc}
    */
-  public function validate() {
-    // @TODO: Implement.
+  public function validate(MediaInterface $media) {
+    $source_field = $this->configuration['source_field'];
+    foreach ($this->validationRegexp as $regexp) {
+      $field_definition = $media->getFieldDefinition($source_field);
+      $embed_code = $field_definition->getType() == 'link' ? $media->{$source_field}->url : $media->{$source_field}->value;
+      if (preg_match($regexp, $embed_code)) {
+        return;
+      }
+    }
+
+    throw new MediaTypeException($source_field, 'Not valid URL/embed code.');
   }
 
 }
