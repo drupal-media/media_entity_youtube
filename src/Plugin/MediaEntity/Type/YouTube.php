@@ -31,10 +31,10 @@ class YouTube extends PluginBase implements MediaTypeInterface {
    * @var array
    */
   protected $validationRegexp = array(
-    '@(http|https)://www\.youtube(-nocookie)?\.com/embed/([a-z0-9_-]+)@i',
-    '@(http|https)://www\.youtube(-nocookie)?\.com/v/([a-z0-9_-]+)@i',
-    '@//www\.youtube(-nocookie)?\.com/embed/([a-z0-9_-]+)@i',
-    '@//www\.youtube(-nocookie)?\.com/v/([a-z0-9_-]+)@i',
+    '@(http|https)://www\.youtube(-nocookie)?\.com/embed/(?<id>[a-z0-9_-]+)@i',
+    '@(http|https)://www\.youtube(-nocookie)?\.com/v/(?<id>[a-z0-9_-]+)@i',
+    '@//www\.youtube(-nocookie)?\.com/embed/(?<id>[a-z0-9_-]+)@i',
+    '@//www\.youtube(-nocookie)?\.com/v/(?<id>[a-z0-9_-]+)@i',
   );
 
   /**
@@ -56,6 +56,7 @@ class YouTube extends PluginBase implements MediaTypeInterface {
    */
   public function providedFields() {
     return array(
+      'video_id' => $this->t('Video ID.'),
       'local_thumbnail' => $this->t('Locally stored video thumbnail (downloaded from YouTube\'s servers).'),
       'remote_thumbnail' => $this->t('Link to remotely hosted video thumbnail.'),
       'width' => $this->t('Video width (extracted from embed code).'),
@@ -68,8 +69,42 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   /**
    * {@inheritdoc}
    */
-  public function getField($name) {
-    // @TODO: Implement.
+  public function getField(MediaInterface $media, $name) {
+    switch ($name) {
+      case 'video_id':
+        if ($matches = $this->matchRegexp($media)) {
+          return $matches['id'];
+        }
+        return FALSE;
+
+      case 'local_thumbnail':
+        // @TODO: Needs implementation.
+        return FALSE;
+
+      case 'remote_thumbnail':
+        // @TODO: Needs implementation.
+        return FALSE;
+
+      case 'width':
+        // @TODO: Needs implementation.
+        return FALSE;
+
+      case 'height':
+        // @TODO: Needs implementation.
+        return FALSE;
+
+      case 'autoplay':
+        // @TODO: Needs implementation.
+        return FALSE;
+
+      case 'privacy_mode':
+        // @TODO: Needs implementation.
+        return FALSE;
+
+      default:
+        return FALSE;
+
+    }
   }
 
   /**
@@ -100,15 +135,33 @@ class YouTube extends PluginBase implements MediaTypeInterface {
    * {@inheritdoc}
    */
   public function validate(MediaInterface $media) {
+    if ($this->matchRegexp($media)) {
+      return;
+    }
+
+    throw new MediaTypeException($this->configuration['source_field'], 'Not valid URL/embed code.');
+  }
+
+  /**
+   * Runs preg_match on embed code/URL.
+   *
+   * @param MediaInterface $media
+   *   Media object.
+   * @return array|bool
+   *   Array of preg matches or FALSE if no match.
+   *
+   * @see preg_match()
+   */
+  protected function matchRegexp(MediaInterface $media) {
+    $matches = array();
     $source_field = $this->configuration['source_field'];
     foreach ($this->validationRegexp as $regexp) {
       $property_name = $media->{$source_field}->first()->mainPropertyName();
-      if (preg_match($regexp, $media->{$source_field}->{$property_name})) {
-        return;
+      if (preg_match($regexp, $media->{$source_field}->{$property_name}, $matches)) {
+        return $matches;
       }
     }
 
-    throw new MediaTypeException($source_field, 'Not valid URL/embed code.');
+    return FALSE;
   }
-
 }
