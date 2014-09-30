@@ -35,6 +35,7 @@ class YouTube extends PluginBase implements MediaTypeInterface {
     '@(http|https)://www\.youtube(-nocookie)?\.com/v/(?<id>[a-z0-9_-]+)@i',
     '@//www\.youtube(-nocookie)?\.com/embed/(?<id>[a-z0-9_-]+)@i',
     '@//www\.youtube(-nocookie)?\.com/v/(?<id>[a-z0-9_-]+)@i',
+    '@(http|https)://www\.youtube\.com/watch\?v=(?<id>[a-z0-9_-]+)@i',
   );
 
   /**
@@ -139,7 +140,7 @@ class YouTube extends PluginBase implements MediaTypeInterface {
       return;
     }
 
-    throw new MediaTypeException($this->configuration['source_field'], 'Not valid URL/embed code.');
+    throw new MediaTypeException($this->configuration['youtube']['source_field'], 'Not valid URL/embed code.');
   }
 
   /**
@@ -154,7 +155,7 @@ class YouTube extends PluginBase implements MediaTypeInterface {
    */
   protected function matchRegexp(MediaInterface $media) {
     $matches = array();
-    $source_field = $this->configuration['source_field'];
+    $source_field = $this->configuration['youtube']['source_field'];
     foreach ($this->validationRegexp as $regexp) {
       $property_name = $media->{$source_field}->first()->mainPropertyName();
       if (preg_match($regexp, $media->{$source_field}->{$property_name}, $matches)) {
