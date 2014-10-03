@@ -11,7 +11,7 @@ entity within any other Drupal entity.
 This module provides YouTube integration for Media entity (i.e. media type provider
 plugin).
 
-Project page: drupal.org/project/media_entity_youtube
+Project page: http://drupal.org/project/media_entity_youtube
 
 Maintainers:
  - Janez Urevc (@slashrsm) drupal.org/user/744628
