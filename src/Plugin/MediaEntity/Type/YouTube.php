@@ -128,8 +128,20 @@ class YouTube extends PluginBase implements MediaTypeInterface {
           if (!file_exists($local_uri)) {
             file_prepare_directory($local_uri, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
 
-            $image = file_get_contents($local_uri);
-            file_unmanaged_save_data($image, $local_uri, FILE_EXISTS_REPLACE);
+            $maxres_thumb = 'http://img.youtube.com/vi/' . $matches['id'] . '/maxresdefault.jpg';
+            if (!($data = file_get_contents($maxres_thumb))) {
+              $size = 0;
+              $xml = $this->getMetadata($matches['id']);
+              foreach ($xml->children('media', TRUE)->group->thumbnail as $thumb) {
+                if ($size < (int) $thumb->attributes()->width) {
+                  $size = (int) $thumb->attributes()->width;
+                  $maxres_thumb = (string) $thumb->attributes()->url;
+                }
+              }
+              $data = file_get_contents($maxres_thumb)
+            }
+
+            file_unmanaged_save_data($data, $local_uri, FILE_EXISTS_REPLACE);
 
             return $local_uri;
           }
@@ -140,6 +152,7 @@ class YouTube extends PluginBase implements MediaTypeInterface {
 
         case 'remote_thumbnail':
           if ($data = $this->getMetadata($matches['id'])) {
+            // TODO - should we do the same maxres magic as above?
             return $data->children('media', TRUE)->group->thumbnail[0]->attributes()->url;
           }
           return FALSE;
