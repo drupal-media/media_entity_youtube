@@ -138,7 +138,7 @@ class YouTube extends PluginBase implements MediaTypeInterface {
                   $maxres_thumb = (string) $thumb->attributes()->url;
                 }
               }
-              $data = file_get_contents($maxres_thumb)
+              $data = file_get_contents($maxres_thumb);
             }
 
             file_unmanaged_save_data($data, $local_uri, FILE_EXISTS_REPLACE);
