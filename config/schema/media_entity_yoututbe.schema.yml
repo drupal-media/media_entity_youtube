@@ -5,3 +5,11 @@ media_entity.bundle.type.youtube:
     source_field:
       type: string
       label: 'Field with embed code/URL'
+
+media_entity_youtube.settings:
+  type: mapping
+  label: 'Media entity YouTube settings'
+  mapping:
+    local_images:
+      type: string
+      label: 'Base folder for tuhmbnails'
