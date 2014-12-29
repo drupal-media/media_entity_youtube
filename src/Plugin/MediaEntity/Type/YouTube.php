@@ -7,11 +7,13 @@
 namespace Drupal\media_entity_youtube\Plugin\MediaEntity\Type;
 
 use Drupal\Component\Plugin\PluginBase;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\media_entity\MediaBundleInterface;
 use Drupal\media_entity\MediaInterface;
 use Drupal\media_entity\MediaTypeException;
 use Drupal\media_entity\MediaTypeInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides media type plugin for YouTube videos.
@@ -24,6 +26,13 @@ use Drupal\media_entity\MediaTypeInterface;
  */
 class YouTube extends PluginBase implements MediaTypeInterface {
   use StringTranslationTrait;
+
+  /**
+   * Metadata information fetched from YouTube.
+   *
+   * @var \SimpleXMLElement|FALSE
+   */
+  protected $metadata;
 
   /**
    * List of validation regural expressions.
@@ -46,6 +55,42 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   protected $label;
 
   /**
+   * Config factory service.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('config.factory')
+    );
+  }
+
+  /**
+   * Constructs a new class instance.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin_id for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   Config factory service.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config_factory) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    $this->configFactory = $config_factory;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function label() {
@@ -58,7 +103,8 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   public function providedFields() {
     return array(
       'video_id' => $this->t('Video ID.'),
-      'local_thumbnail' => $this->t('Locally stored video thumbnail (downloaded from YouTube\'s servers).'),
+      'image_local' => $this->t('Copies video thumbnail to the local filesystem and returns the URI.'),
+      'image_local_uri' => $this->t('Gets URI of the locally saved thumbnail.'),
       'remote_thumbnail' => $this->t('Link to remotely hosted video thumbnail.'),
       'width' => $this->t('Video width (extracted from embed code).'),
       'height' => $this->t('Video height (extracted from embed code).'),
@@ -71,41 +117,69 @@ class YouTube extends PluginBase implements MediaTypeInterface {
    * {@inheritdoc}
    */
   public function getField(MediaInterface $media, $name) {
-    switch ($name) {
-      case 'video_id':
-        if ($matches = $this->matchRegexp($media)) {
+    if ($matches = $this->matchRegexp($media)) {
+      switch ($name) {
+        case 'video_id':
           return $matches['id'];
-        }
-        return FALSE;
 
-      case 'local_thumbnail':
-        // @TODO: Needs implementation.
-        return FALSE;
+        case 'image_local':
+          $local_uri = $this->configFactory->get('media_entity_twitter.settings')->get('local_images') . '/' . $matches['id'] . '.jpg';
 
-      case 'remote_thumbnail':
-        // @TODO: Needs implementation.
-        return FALSE;
+          if (!file_exists($local_uri)) {
+            file_prepare_directory($local_uri, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS);
 
-      case 'width':
-        // @TODO: Needs implementation.
-        return FALSE;
+            $maxres_thumb = 'http://img.youtube.com/vi/' . $matches['id'] . '/maxresdefault.jpg';
+            if (!($data = file_get_contents($maxres_thumb))) {
+              $size = 0;
+              $xml = $this->getMetadata($matches['id']);
+              foreach ($xml->children('media', TRUE)->group->thumbnail as $thumb) {
+                if ($size < (int) $thumb->attributes()->width) {
+                  $size = (int) $thumb->attributes()->width;
+                  $maxres_thumb = (string) $thumb->attributes()->url;
+                }
+              }
+              $data = file_get_contents($maxres_thumb);
+            }
 
-      case 'height':
-        // @TODO: Needs implementation.
-        return FALSE;
+            file_unmanaged_save_data($data, $local_uri, FILE_EXISTS_REPLACE);
 
-      case 'autoplay':
-        // @TODO: Needs implementation.
-        return FALSE;
+            return $local_uri;
+          }
+          return FALSE;
 
-      case 'privacy_mode':
-        // @TODO: Needs implementation.
-        return FALSE;
+        case 'image_local_uri':
+           return $this->configFactory->get('media_entity_twitter.settings')->get('local_images') . '/' . $matches['id'] . '.jpg';
 
-      default:
-        return FALSE;
+        case 'remote_thumbnail':
+          if ($data = $this->getMetadata($matches['id'])) {
+            // TODO - should we do the same maxres magic as above?
+            return $data->children('media', TRUE)->group->thumbnail[0]->attributes()->url;
+          }
+          return FALSE;
 
+        case 'width':
+          // @TODO: Needs implementation.
+          return FALSE;
+
+        case 'height':
+          // @TODO: Needs implementation.
+          return FALSE;
+
+        case 'autoplay':
+          // @TODO: Needs implementation.
+          return FALSE;
+
+        case 'privacy_mode':
+          // @TODO: Needs implementation.
+          return FALSE;
+
+        default:
+          return FALSE;
+
+      }
     }
+
+    return FALSE;
   }
 
   /**
@@ -144,6 +218,16 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function thumbnail(MediaInterface $media) {
+    if ($local_image = $this->getField($media, 'local_image')) {
+      return $local_image;
+    }
+    return $this->configFactory->get('media_entity.settings')->get('icon_base') . '/youtube.png';
+  }
+
+  /**
    * Runs preg_match on embed code/URL.
    *
    * @param MediaInterface $media
@@ -164,5 +248,19 @@ class YouTube extends PluginBase implements MediaTypeInterface {
     }
 
     return FALSE;
+  }
+
+  /**
+   * @param $id
+   *   YouTube video ID.
+   * @return \SimpleXMLElement|false
+   *   XML object or FALSE in case of a failure.
+   */
+  protected function getMetadata($id) {
+    if (!isset($this->metadata)) {
+      $this->metadata = simplexml_load_file('http://gdata.youtube.com/feeds/api/videos/' . $id);
+    }
+
+    return $this->metadata;
   }
 }
