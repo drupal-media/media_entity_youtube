@@ -6,13 +6,13 @@
 
 namespace Drupal\media_entity_youtube\Plugin\MediaEntity\Type;
 
-use Drupal\Component\Plugin\PluginBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\media_entity\MediaBundleInterface;
 use Drupal\media_entity\MediaInterface;
+use Drupal\media_entity\MediaTypeBase;
 use Drupal\media_entity\MediaTypeException;
-use Drupal\media_entity\MediaTypeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -21,11 +21,10 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @MediaType(
  *   id = "youtube",
  *   label = @Translation("YouTube video"),
- *   description = @Translation("Provides bussiness logic and metadata for YouTube videos..")
+ *   description = @Translation("Provides business logic and metadata for YouTube videos..")
  * )
  */
-class YouTube extends PluginBase implements MediaTypeInterface {
-  use StringTranslationTrait;
+class YouTube extends MediaTypeBase {
 
   /**
    * Metadata information fetched from YouTube.
@@ -48,30 +47,11 @@ class YouTube extends PluginBase implements MediaTypeInterface {
   );
 
   /**
-   * Plugin label.
-   *
-   * @var string
-   */
-  protected $label;
-
-  /**
    * Config factory service.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected $configFactory;
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    return new static(
-      $configuration,
-      $plugin_id,
-      $plugin_definition,
-      $container->get('config.factory')
-    );
-  }
 
   /**
    * Constructs a new class instance.
@@ -82,19 +62,27 @@ class YouTube extends PluginBase implements MediaTypeInterface {
    *   The plugin_id for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
+   * @param \Drupal\Core\Entity\EntityManager $entity_manager
+   *   Entity manager service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   Config factory service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config_factory) {
-    parent::__construct($configuration, $plugin_id, $plugin_definition);
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, EntityManagerInterface $entity_manager, ConfigFactoryInterface $config_factory) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $entity_manager, $config_factory->get('media_entity.settings'));
     $this->configFactory = $config_factory;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function label() {
-    return $this->label;
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('entity_manager'),
+      $container->get('config.factory')
+    );
   }
 
   /**
@@ -224,7 +212,7 @@ class YouTube extends PluginBase implements MediaTypeInterface {
     if ($local_image = $this->getField($media, 'local_image')) {
       return $local_image;
     }
-    return $this->configFactory->get('media_entity.settings')->get('icon_base') . '/youtube.png';
+    return $this->config->get('icon_base') . '/youtube.png';
   }
 
   /**
